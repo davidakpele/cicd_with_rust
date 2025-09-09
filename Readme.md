@@ -1,0 +1,3 @@
+Creating migrations\20250909140458_create_github_account.sql
+
+sqlx migrate run
