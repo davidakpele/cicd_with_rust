@@ -2,6 +2,7 @@
 
 CREATE TABLE github_accounts (
     id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL UNIQUE,
     email VARCHAR(255),
     username VARCHAR(255) NOT NULL UNIQUE,
     avatar_url TEXT,

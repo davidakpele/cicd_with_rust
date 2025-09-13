@@ -15,7 +15,7 @@ use utoipa::{
 use utoipa::path;
 use serde::Serialize;
 
-use crate::ws::ws_channel::WsBroadcaster;
+use crate::{controllers::{deployment_controller::deploy_project, github_account_controller::{delete_repo_by_id, fetch_repo_by_id, fetch_user_by_username, get_user_account_by_id, list_branches, list_repos_from_git}}, ws::ws_channel::WsBroadcaster};
 use crate::controllers::{
     auth_controller::{login_user, register_user},
     user_controller::{delete_user, get_user_by_id, update_user},
@@ -142,15 +142,23 @@ pub fn create_routes(pool: PgPool, broadcaster: Arc<WsBroadcaster>) -> Router {
         Some(TokenUrl::new("https://github.com/login/oauth/access_token".to_string()).unwrap()),
     )
     .set_redirect_uri(
-        RedirectUrl::new("http://localhost:8022/auth/github/callback".to_string()).unwrap(),
+        RedirectUrl::new("http://localhost:5173/auth/github/callback".to_string()).unwrap(),
     );
 
     let state = Arc::new(AppState { oauth_client, db: pool.clone() });
 
      // GitHub OAuth routes
     let github_routes = Router::new()
+        // authenticate user to login and authorize our platform to access user githhub account
         .route("/auth/github/login", get(github_login))
+        // callback after authorize
         .route("/auth/github/callback", get(github_callback))
+        .route("/github/repos/list/:id", get(get_user_account_by_id))
+        // Fetch user profile from system
+        .route("/user/profile", get(fetch_user_by_username))
+        // fetch list of user repositories from github
+        .route("/repos/:username/:repo/branches", get(list_branches))
+        .layer(middleware::from_extractor::<AuthUser>())
         .layer(Extension(state.clone()));
 
 
@@ -177,13 +185,30 @@ pub fn create_routes(pool: PgPool, broadcaster: Arc<WsBroadcaster>) -> Router {
         .layer(middleware::from_extractor::<AuthUser>())
         .layer(Extension(pool.clone()));
 
-         // Repos
+    // Guthub Repository routes 
+    let user_repo_routes = Router::new()
+        .route("/github/:username/repos", get(list_repos_from_git))
+        .route("/github/repos/:id", get(fetch_repo_by_id))
+        .route("/github/repos/:id", delete(delete_repo_by_id))
+       
+        
+        // .layer(middleware::from_extractor::<AuthUser>())
+        .layer(Extension(pool.clone()));
+    
+    // Deployment 
+    let user_project_deploy_routes = Router::new()
+        .route("/deploy/project", post(deploy_project))
+        .layer(middleware::from_extractor::<AuthUser>())
+        .layer(Extension(pool.clone()));
+
+     // Repos
     let repo_routes = Router::new()
         .route("/repos", post(create_repo).get(list_repos))
         .route("/repos/:id", get(get_repo).delete(delete_repo))
         .layer(middleware::from_extractor::<AuthUser>())
         .layer(Extension(pool.clone()));
 
+    // Admin 
     let admin_routes = Router::new()
         .route("/admin/secret", get(|| async { "Admin Only" }))
         .layer(middleware::from_extractor::<AdminUser>())
@@ -198,6 +223,8 @@ pub fn create_routes(pool: PgPool, broadcaster: Arc<WsBroadcaster>) -> Router {
         .merge(user_routes)
         .merge(admin_routes)
         .merge(github_routes)   
+        .merge(user_project_deploy_routes)
+        .merge(user_repo_routes)   
         .fallback(handler_404)
         .layer(Extension(pool))
         .layer(Extension(broadcaster))

@@ -6,8 +6,6 @@ use utoipa::ToSchema;
 
 use crate::enums::job_status::JobStatus;
 
-
-
 // CI/CD Job
 #[derive(Debug, Serialize, Deserialize, FromRow, Clone, ToSchema)] 
 pub struct Job {

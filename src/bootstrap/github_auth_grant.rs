@@ -8,11 +8,11 @@ use oauth2::{
     basic::BasicClient, reqwest::async_http_client, AuthUrl, AuthorizationCode,
     ClientId, ClientSecret, CsrfToken, RedirectUrl, Scope, TokenResponse, TokenUrl,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use std::sync::Arc;
 
-use crate::{repository::github_account_repository::GithubAccountRepository, services::github_account_service::{self, GithubAccountService}};
+use crate::{middleware::auth::AuthUser, repository::github_account_repository::GithubAccountRepository, services::github_account_service::{self, GithubAccountService}};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -20,15 +20,25 @@ pub struct AppState {
     pub db: PgPool,
 }
 
+#[derive(Serialize)]
+struct AuthUrlResponse {
+    url: String,
+}
+
 // Redirect user to GitHub login page
-pub async fn github_login(Extension(state): Extension<Arc<AppState>>) -> impl IntoResponse {
-    let (auth_url, _csrf_token) = state.oauth_client
+pub async fn github_login(
+    Extension(state): Extension<Arc<AppState>>,
+) -> impl IntoResponse {
+    let (auth_url, _csrf_token) = state
+        .oauth_client
         .authorize_url(CsrfToken::new_random)
         .add_scope(Scope::new("read:user".to_string()))
         .add_scope(Scope::new("user:email".to_string()))
         .url();
 
-    Redirect::to(auth_url.as_str())
+    Json(AuthUrlResponse {
+        url: auth_url.to_string(),
+    })
 }
 
 // GitHub redirects back here with code
@@ -38,11 +48,13 @@ pub struct AuthRequest {
     state: String,
 }
 
-
-    pub async fn github_callback(
+pub async fn github_callback(
     Extension(state): Extension<Arc<AppState>>,
+    AuthUser(claims): AuthUser, 
     Query(query): Query<AuthRequest>,
 ) -> impl IntoResponse {
+    let user_id: i64 = claims.sub; 
+
     let token_res = state
         .oauth_client
         .exchange_code(AuthorizationCode::new(query.code))
@@ -76,11 +88,17 @@ pub struct AuthRequest {
             let service = GithubAccountService::new(repo);
 
             match service
-                .save_or_fetch_user(github_id, &username, email, avatar_url, &access_token)
+                .save_or_fetch_user(
+                    user_id,        
+                    github_id,
+                    &username,
+                    email,
+                    avatar_url,
+                    &access_token,
+                )
                 .await
             {
                 Ok(user) => {
-                    // Fetch user repos via service
                     let repos = service.get_user_repos(&access_token).await.unwrap_or_default();
 
                     let result = serde_json::json!({
@@ -96,7 +114,6 @@ pub struct AuthRequest {
                 )
                     .into_response(),
             }
-
         }
         Err(err) => (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -104,6 +121,4 @@ pub struct AuthRequest {
         )
         .into_response(),
     }
-
-
 }

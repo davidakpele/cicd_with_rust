@@ -1,15 +1,22 @@
 use axum::{
-    extract::{Extension, Path},
+    extract::{Extension, Path, Query},
     http::StatusCode,
     response::IntoResponse,
     Json,
 };
+use serde::Deserialize;
 use serde_json::json;
 use sqlx::PgPool;
 use std::sync::Arc;
 
-use crate::{bootstrap::github_auth_grant::AppState, services::github_account_service::GithubAccountService};
+use crate::{bootstrap::github_auth_grant::AppState, middleware::auth::AuthUser, models::github_account::GitHubAccount, services::github_account_service::GithubAccountService};
 use crate::repository::github_account_repository::GithubAccountRepository;
+
+#[derive(Deserialize)]
+pub struct RepoQuery {
+    token: String,
+}
+
 
 #[utoipa::path(
     get,
@@ -19,7 +26,7 @@ use crate::repository::github_account_repository::GithubAccountRepository;
         (status = 404, description = "User not found"),
     )
 )]
-pub async fn list_repos(
+pub async fn list_repos_from_git(
     Path(username): Path<String>,
     Extension(pool): Extension<PgPool>,
 ) -> impl IntoResponse {
@@ -35,6 +42,7 @@ pub async fn list_repos(
             .into_response(),
     }
 }
+
 
 #[utoipa::path(
     get,
@@ -114,3 +122,52 @@ pub async fn list_branches(
             .into_response(),
     }
 }
+
+pub async fn get_user_account_by_id(
+    Extension(db): Extension<PgPool>,
+    Path(user_id): Path<i64>,
+) -> impl IntoResponse {
+    let repo = GithubAccountRepository::new(db.clone());
+    let service = GithubAccountService::new(repo);
+
+    match service.get_user_account_by_id(user_id).await {
+        Ok(account) => (StatusCode::OK, Json(account)).into_response(),
+        Err(err) => (
+            StatusCode::NOT_FOUND,
+            Json(json!({ "error": err.to_string() })),
+        )
+            .into_response(),
+    }
+}
+
+
+#[utoipa::path(
+    get,
+    path = "/github/users/{username}",
+    params(
+        ("username" = String, Path, description = "GitHub username to fetch")
+    ),
+    responses(
+        (status = 200, description = "User found", body = serde_json::Value),
+        (status = 404, description = "User not found"),
+    )
+)]
+pub async fn fetch_user_by_username(
+    AuthUser(claims): AuthUser,
+    Extension(pool): Extension<PgPool>,
+) -> impl IntoResponse {
+    let user_id: i64 = claims.sub;
+    let repo = GithubAccountRepository::new(pool.clone());
+    let service = GithubAccountService::new(repo);
+
+    match service.get_repo_by_id(user_id).await {
+        Ok(repos) => (StatusCode::OK, Json(repos)).into_response(),
+        Err(e) => (
+            StatusCode::NOT_FOUND,
+            Json(json!({ "error": e.to_string() })),
+        )
+            .into_response(),
+    }
+}
+
+

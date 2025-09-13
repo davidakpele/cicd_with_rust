@@ -7,6 +7,7 @@ use chrono::{DateTime, NaiveDateTime, Utc};
 #[derive(Debug, Serialize, Deserialize, FromRow, Clone, ToSchema)]
 pub struct GitHubAccount {
     pub id: i64,
+    pub user_id: i64, // just added this to tract user
     pub email: Option<String>,        // GitHub email (may be null)
     pub username: String,             // GitHub login name
     pub avatar_url: Option<String>,   // GitHub avatar

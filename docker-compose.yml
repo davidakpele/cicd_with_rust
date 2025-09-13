@@ -1,0 +1,61 @@
+services:
+  app:
+    build: .
+    container_name: cicd-service
+    ports:
+      - "8022:8022"
+      - "9001:9001"
+    environment:
+      DATABASE_URL: postgres://postgres:root@postgres_db:5432/ci_cd_pipeline
+      DB_MAX_CONNECTIONS: 10
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+    networks:
+      - cicd-net
+    # Add healthcheck for app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8022/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  postgres_db:
+    image: postgres:latest
+    container_name: cicd-net-db
+    restart: always
+    environment:
+      POSTGRES_DB: ci_cd_pipeline
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+    ports:
+      - "5433:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    networks:
+      - cicd-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ci_cd_pipeline"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  nginx:
+    image: nginx:latest
+    container_name: cicd-nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - app
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/sites:/etc/nginx/conf.d
+    networks:
+      - cicd-net
+
+volumes:
+  pg_data:
+
+networks:
+  cicd-net:
+    driver: bridge
