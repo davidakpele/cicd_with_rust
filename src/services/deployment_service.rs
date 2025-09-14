@@ -206,7 +206,8 @@ impl DeploymentService {
         let npm_cmd = "npm";
 
         let (cmd, args): (&str, Vec<String>) = match project_type {
-            "react" | "next" => (npm_cmd, vec!["run".into(), "start".into()]),
+            // For React and Next.js, the build output is static, so no "start" command is needed.
+            "react" | "next" => return Ok("Static project, no start command required. Will be served by Nginx.".into()),
             "node" => ("node", vec!["server.js".into()]),
             "python" => ("python", vec!["app.py".into()]),
             "rust" => ("cargo", vec!["run".into()]),

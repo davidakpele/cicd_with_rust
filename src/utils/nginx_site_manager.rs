@@ -4,8 +4,8 @@ use std::process::Command;
 use anyhow::{Context, Result};
 
 pub struct NginxSiteManager {
-    base_dir: String,       // Where generated conf files live (e.g. ./nginx/sites)
-    nginx_container: String // Name of your nginx container
+    base_dir: String,     
+    nginx_container: String 
 }
 
 impl NginxSiteManager {
