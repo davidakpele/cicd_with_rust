@@ -51,26 +51,19 @@ impl DeploymentRepository {
 
     // Run `git clone` into a target directory
     pub fn clone_repo(&self, repo_url: &str, branch: &str, target_dir: &str) -> Result<String> {
-        // Clean directory first
-        let _ = fs::remove_dir_all(target_dir);
-
         let output = Command::new("git")
-            .args(&["clone", "-b", branch, repo_url, target_dir])
-            .output()?;
+            .args(&["clone", "--branch", branch, repo_url, target_dir])
+            .output()
+            .with_context(|| format!("Failed to clone repository from {}", repo_url))?;
 
         if !output.status.success() {
-            return Err(anyhow!(
-                "Git clone failed: {}",
+            return Err(anyhow::anyhow!(
+                "git clone failed: {}",
                 String::from_utf8_lossy(&output.stderr)
             ));
         }
 
-        let logs = format!(
-            "stdout:\n{}\nstderr:\n{}",
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
-        );
-        Ok(logs)
+        Ok(String::from_utf8_lossy(&output.stdout).to_string())
     }
 
     pub async fn assign_port(&self, deployment_id: i64) -> Result<i32> {

@@ -21,7 +21,7 @@ vader_sentiment = "0.1"
 dotenv = "0.15"
 env_logger = "0.11.7"
 openssl-probe = "0.1"
-openssl = { version = "0.10", features = ["vendored"] }
+openssl = { version = "0.10", features = ["vendored"] }   
 serde_json = "1.0"
 bincode = "2.0.1"
 bytes = "1.0"
@@ -78,6 +78,7 @@ console = { version = "0.16", features = ["std"] }
 insta = { version = "1.41", features = ["json"] }
 # Github auth2
 oauth2 = "4.4.1"
+warp = "0.3"
 
 
 [dev-dependencies]

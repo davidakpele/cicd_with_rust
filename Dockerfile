@@ -5,7 +5,7 @@ FROM rust:slim-bullseye AS builder
 
 WORKDIR /app
 
-# Install build tools and Node.js
+# Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     wget \
@@ -13,8 +13,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     pkg-config \
     libssl-dev \
-    nodejs npm \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js 20.x from NodeSource
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs
+
+# Verify Node.js version
+RUN node --version && npm --version
 
 # Install sqlx-cli for database migrations
 RUN cargo install sqlx-cli --no-default-features --features postgres --locked
@@ -25,11 +31,6 @@ COPY . .
 # Build Rust application
 RUN cargo build --release
 
-# Optional: build React project if package.json exists
-RUN if [ -f package.json ] && grep -q "\"react\"" package.json; then \
-        npm install && npm run build; \
-    fi
-
 # ------------------------
 # Stage 2: Production
 # ------------------------
@@ -37,14 +38,20 @@ FROM debian:bookworm-slim AS production
 
 WORKDIR /app
 
-# Install minimal runtimes
+# Install runtime dependencies - ADD GIT HERE!
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    nodejs npm \
-    libssl3 \
+    git \ 
     curl \
-    wget \
-    git \
+    libssl3 \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js 20.x in production stage
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs
+
+# Verify Node.js version
+RUN node --version && npm --version
 
 # Copy Rust binary from builder
 COPY --from=builder /app/target/release/ci-cd-pipeline ./ci-cd-pipeline

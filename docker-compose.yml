@@ -1,20 +1,22 @@
-version: "3.9"
+volumes:
+  pg_data:
+  deployments_data:
 
 services:
   app:
     build: .
     container_name: cicd-service
     ports:
-      - "8022:8022"   # Rust deployment service API
+      - "8022:8022"
     env_file:
-      - .env          # Load environment variables including GitHub credentials
+      - .env
     depends_on:
       postgres_db:
         condition: service_healthy
     networks:
       - cicd-net
     volumes:
-      - deployments_data:/app/deployments
+      - deployments_data:/deployments
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8022/health"]
       interval: 30s
@@ -51,13 +53,9 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/sites:/etc/nginx/conf.d
-      - deployments_data:/app/deployments  # Serve user deployments
+      - deployments_data:/deployments
     networks:
       - cicd-net
-
-volumes:
-  pg_data:
-  deployments_data:
 
 networks:
   cicd-net:
