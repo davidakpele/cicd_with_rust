@@ -37,12 +37,13 @@ impl DeploymentRepository {
         Ok(record)
     }
 
-    pub async fn update_status(&self, id: i64, status: &str, logs: Option<&str>) -> Result<()> {
+    pub async fn update_status(&self, id: i64, status: &str, logs: Option<&str>, live_url: Option<&str>) -> Result<()> {
         sqlx::query(
-            "UPDATE deployments SET status = $1, logs = $2, updated_at = now() WHERE id = $3"
+            "UPDATE deployments SET status = $1, logs = $2, live_url= $3, updated_at = now() WHERE id = $4"
         )
         .bind(status)
         .bind(logs)
+        .bind(live_url)
         .bind(id)
         .execute(&self.db)
         .await?;

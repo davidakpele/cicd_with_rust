@@ -6,7 +6,9 @@ CREATE TABLE deployments (
     branch TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'pending',
     deployment_id BIGINT REFERENCES deployments(id),
+    container_id TEXT,
     port INT UNIQUE, -- nullable
+    live_url TEXT,
     in_use BOOLEAN DEFAULT TRUE,
     logs TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),

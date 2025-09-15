@@ -10,9 +10,12 @@ pub struct Deployment {
     pub branch: String,
     pub status: String,        // pending, running, success, failed
     pub deployment_id: Option<i64>, // self-reference, can be NULL
-    pub port: Option<i32>,     // UNIQUE, but may be null until assigned
+    pub container_id: Option<String>,
+    pub port: Option<i32>,   
+    pub live_url: Option<String>, 
     pub in_use: Option<bool>,  // default true
     pub logs: Option<String>,  // build logs
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+
 }

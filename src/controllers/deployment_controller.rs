@@ -1,3 +1,5 @@
+// src/controllers/deployment_controller.rs
+
 use axum::{
     extract::{Extension, Json},
     http::StatusCode,
@@ -6,7 +8,8 @@ use axum::{
 use serde::Deserialize;
 use sqlx::PgPool;
 use std::sync::Arc;
-
+use crate::utils::docker_manager::DockerManager;
+use crate::utils::nginx_site_manager::NginxSiteManager;
 use crate::{
     bootstrap::github_auth_grant::AppState, repository::deployment_repository::DeploymentRepository, services::deployment_service::DeploymentService
 };
@@ -23,15 +26,20 @@ pub async fn deploy_project(
     Extension(pool): Extension<PgPool>,
     Json(payload): Json<DeployRequest>,
 ) -> impl IntoResponse {
+    let docker_manager = DockerManager::new(8080, 9000);
     let repo = DeploymentRepository::new(pool.clone());
-    let service = DeploymentService::new(repo);
+    let nginx_manager = NginxSiteManager::new(
+        "/etc/nginx/conf.d",
+        docker_manager.docker.clone(),
+    );
+    let service = DeploymentService::new(repo, docker_manager, nginx_manager);
 
     match service
         .deploy_project(
             payload.user_id,
             &payload.repo_url,
             &payload.repo_name,
-            &payload.branch, 
+            &payload.branch,
         )
         .await
     {

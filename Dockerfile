@@ -38,13 +38,17 @@ FROM debian:bookworm-slim AS production
 
 WORKDIR /app
 
-# Install runtime dependencies - ADD GIT HERE!
+# Install runtime dependencies including git and the Docker CLI
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \ 
+    git \
     curl \
     libssl3 \
     ca-certificates \
+    docker.io \
     && rm -rf /var/lib/apt/lists/*
+
+# Add /usr/local/bin to the PATH
+ENV PATH="/usr/local/bin:${PATH}"
 
 # Install Node.js 20.x in production stage
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \

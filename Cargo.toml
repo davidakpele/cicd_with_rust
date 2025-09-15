@@ -79,6 +79,8 @@ insta = { version = "1.41", features = ["json"] }
 # Github auth2
 oauth2 = "4.4.1"
 warp = "0.3"
+docker-api = "0.14.0"
+shiplift = "0.7.0" 
 
 
 [dev-dependencies]
